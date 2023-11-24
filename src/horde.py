@@ -35,10 +35,10 @@ async def async_one_image_generate_example(
     single_generation_response, job_id = await simple_client.image_generate_request(
         ImageGenerateAsyncRequest(
             apikey=apikey,
-            prompt="robot with tree branch piercing his face",
+            prompt="convert human to robot, convert machine pipe to tree branch",
             source_image=base64.b64encode(source),
             source_mask=base64.b64encode(mask),
-            source_processing='inpainting',
+            source_processing='img2img',
             models=["Deliberate"],
             params=ImageGenerationInputPayload(
                 height=512,
