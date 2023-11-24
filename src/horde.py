@@ -35,14 +35,23 @@ async def async_one_image_generate_example(
     single_generation_response, job_id = await simple_client.image_generate_request(
         ImageGenerateAsyncRequest(
             apikey=apikey,
-            prompt="convert human to robot, convert machine pipe to tree branch",
+            prompt="robot face pierced by a giant vine, horrifying, photorealistic, leviathan, otherworldly, dystopian, digital artwork by yang xueguo",
             source_image=base64.b64encode(source),
             source_mask=base64.b64encode(mask),
             source_processing='img2img',
             models=["Deliberate"],
+            nsfw=True,
+            censor_nsfw=False,
             params=ImageGenerationInputPayload(
-                height=512,
-                width=512,
+                height=1024,
+                width=1024,
+                steps=50,
+                sampler_name='k_euler_a',
+                control_type="canny",
+                image_is_control=False,
+                hires_fix=True,
+                karras=True,
+                use_nsfw_censor=False,
                 tis=[
                     TIPayloadEntry(
                         name="72437",
