@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  uxo:
+    image: ghcr.io/0-5788719150923125/uxo:latest
+    tty: true
+    stdin_open: true
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/data
+      - ./src:/src
+    env_file:
+      - .env
