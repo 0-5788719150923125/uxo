@@ -11,5 +11,7 @@ services:
     volumes:
       - ./data:/data
       - ./src:/src
+    environment:
+      LOGURU_LEVEL: DEBUG
     env_file:
       - .env
