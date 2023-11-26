@@ -8,11 +8,12 @@ RUN apt-get update -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /src
-
+COPY static/ /static
 COPY src/ /src
 COPY requirements.txt /src
 
+WORKDIR /src
+
 RUN pip install -r requirements.txt
 
-CMD ["python", "main.py"]
+CMD ["python", "app.py"]

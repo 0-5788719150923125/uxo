@@ -1,8 +1,8 @@
-import argparse
 import asyncio
 import base64
-import logging
-from collections.abc import Coroutine
+import io
+import os
+import traceback
 from pathlib import Path
 
 import aiohttp
@@ -23,152 +23,114 @@ from horde_sdk.ai_horde_api.consts import (
     POST_PROCESSOR_ORDER_TYPE,
 )
 from horde_sdk.ai_horde_api.fields import JobID
-from PIL.Image import Image
+from loguru import logger
 
 # logging.getLogger("horde_sdk").setLevel(logging.WARNING)
 
 
-async def async_one_image_generate_example(
+async def generate_image(
     simple_client: AIHordeAPIAsyncSimpleClient,
     apikey: str = ANON_API_KEY,
+    prompt: str = "(masterpiece, top quality, best quality, official art, beautiful and aesthetic:1.2), (1girl:1.3), (fractal art:1.3),",
+    models: list = ["GhostMix"],
+    height: int = 256,
+    width: int = 256,
+    sampler_name: str = "k_lms",
+    control_type: str = "canny",
+    steps: int = 25,
+    denoising_strength: int = 0.65,
+    cfg_scale: int = 7.0,
+    clip_skip: int = 1,
+    source: str = None,
+    mask: str = None,
 ) -> None:
-    single_generation_response: ImageGenerateStatusResponse
+    response: ImageGenerateStatusResponse
     job_id: JobID
 
-    with open("adam.jpg", "rb") as image_file:
-        source = image_file.read()
+    if source is None and os.path.exists("/static/source.jpg"):
+        with open("/static/source.jpg", "rb") as file:
+            source = base64.b64encode(file.read())
 
-    with open("mask.jpg", "rb") as image_file:
-        mask = image_file.read()
+    if mask is None and os.path.exists("/static/mask.jpg"):
+        with open("/static/mask.jpg", "rb") as file:
+            mask = base64.b64encode(file.read())
 
-    prompt = "(masterpiece, top quality, best quality, official art, beautiful and aesthetic:1.2), (1girl:1.3), (fractal art:1.3),"
-
-    single_generation_response, job_id = await simple_client.image_generate_request(
-        ImageGenerateAsyncRequest(
-            apikey=apikey,
-            prompt=prompt,
-            # prompt="(masterpiece, top quality, best quality, official art, colorful, beautiful and aesthetic:1.2), anime robot (head:1.3) and (face:1.2) connected to a large metallic pipe",
-            # prompt="artwork by yang xueguo, cgsociety, an ancient robot face connected to a large metallic pipe, stoic, lovecraftian, photorealistic, leviathan, monolithic, surreal, ethereal, coherent, believable, uncanny",
-            # source_image=base64.b64encode(source),
-            # source_mask=base64.b64encode(mask),
-            # source_processing="img2img",
-            models=[
-                "GhostMix",
-                # "Deliberate 3.0",
-                # "Dreamshaper"
-            ],
-            # nsfw=True,
-            # censor_nsfw=False,
-            params=ImageGenerationInputPayload(
-                height=512,
-                width=512,
-                steps=50,
-                sampler_name="k_dpm_adaptive",
-                # control_type="canny",
-                # image_is_control=True,
-                denoising_strength=0.65,
-                cfg_scale=7.0,
-                hires_fix=True,
-                # karras=True,
-                clip_skip=2,
-                # use_nsfw_censor=False,
-                loras=[
-                    LorasPayloadEntry(
-                        name="kl-f8-anime2",
-                        # model=1,
-                        # clip=1,
-                        # inject_trigger="any",  # Get a random color trigger
-                    ),
-                ],
-                tis=[
-                    TIPayloadEntry(
-                        name="ng_deepnegative_v1_75t",
-                        inject_ti="negprompt",
-                        strength=1,
-                    ),
-                    TIPayloadEntry(
-                        name="easynegative",
-                        inject_ti="negprompt",
-                        strength=1,
-                    ),
-                ],
-                # post_processing=[
-                #     KNOWN_FACEFIXERS.GFPGAN,
-                #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
-                # ],
-                # post_processing_order=[
-                #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
-                # ]
+    try:
+        (
+            response,
+            job_id,
+        ) = await simple_client.image_generate_request(
+            ImageGenerateAsyncRequest(
+                apikey=apikey,
+                prompt=prompt,
+                source_image=source,
+                source_mask=mask,
+                source_processing="img2img",
+                models=models,
+                # nsfw=True,
+                # censor_nsfw=False,
+                params=ImageGenerationInputPayload(
+                    height=height,
+                    width=width,
+                    steps=steps,
+                    sampler_name=sampler_name,
+                    control_type=control_type,
+                    image_is_control=False,
+                    denoising_strength=denoising_strength,
+                    cfg_scale=cfg_scale,
+                    hires_fix=True,
+                    # karras=True,
+                    clip_skip=clip_skip,
+                    # use_nsfw_censor=False,
+                    # loras=[
+                    #     LorasPayloadEntry(
+                    #         name="kl-f8-anime2",
+                    #         # model=1,
+                    #         # clip=1,
+                    #         # inject_trigger="any",  # Get a random color trigger
+                    #     ),
+                    # ],
+                    tis=[
+                        TIPayloadEntry(name="4629", inject_ti="negprompt", strength=1),
+                        TIPayloadEntry(name="7808", inject_ti="negprompt", strength=1),
+                    ],
+                    # post_processing=[
+                    #     KNOWN_FACEFIXERS.GFPGAN,
+                    #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
+                    # ],
+                    # post_processing_order=[
+                    #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
+                    # ]
+                ),
             ),
-        ),
-    )
-
-    if isinstance(single_generation_response, RequestErrorResponse):
-        print(f"Error: {single_generation_response.message}")
-    else:
-        single_image, _ = await simple_client.download_image_from_generation(
-            single_generation_response.generations[0]
         )
 
-        example_path = Path("/data")
-        example_path.mkdir(exist_ok=True, parents=True)
+        if isinstance(response, RequestErrorResponse):
+            logger.error(f"Error: {response.message}")
+        else:
+            single_image, _ = await simple_client.download_image_from_generation(
+                response.generations[0]
+            )
 
-        # single_image.save(example_path / f"{job_id}_simple_async_example.webp")
-        single_image.save(example_path / f"eve.webp")
+            save_path = Path("/data")
+            save_path.mkdir(exist_ok=True, parents=True)
+            single_image.save(save_path / f"eve.webp")
 
-
-# async def async_multi_image_generate_example(
-#     simple_client: AIHordeAPIAsyncSimpleClient,
-#     apikey: str = ANON_API_KEY,
-# ) -> None:
-#     multi_generation_responses: tuple[
-#         tuple[ImageGenerateStatusResponse, JobID],
-#         tuple[ImageGenerateStatusResponse, JobID],
-#     ]
-#     multi_generation_responses = await asyncio.gather(
-#         simple_client.image_generate_request(
-#             ImageGenerateAsyncRequest(
-#                 apikey=apikey,
-#                 prompt="A cat in a blue hat",
-#                 models=["SDXL 1.0"],
-#                 params=ImageGenerationInputPayload(height=1024, width=1024),
-#             ),
-#         ),
-#         simple_client.image_generate_request(
-#             ImageGenerateAsyncRequest(
-#                 apikey=apikey,
-#                 prompt="A cat in a red hat",
-#                 models=["SDXL 1.0"],
-#                 params=ImageGenerationInputPayload(height=1024, width=1024),
-#             ),
-#         ),
-#     )
-
-#     download_image_from_generation_calls: list[
-#         Coroutine[None, None, tuple[Image, JobID]]
-#     ] = []
-
-#     for status_response, _ in multi_generation_responses:
-#         download_image_from_generation_calls.append(
-#             simple_client.download_image_from_generation(
-#                 status_response.generations[0]
-#             ),
-#         )
-
-#     downloaded_images: list[tuple[Image, JobID]] = await asyncio.gather(
-#         *download_image_from_generation_calls
-#     )
-
-#     example_path = Path("/data")
-#     example_path.mkdir(exist_ok=True, parents=True)
-
-#     for image, job_id in downloaded_images:
-#         image.save(example_path / f"{job_id}_simple_async_example.webp")
+            buffer = io.BytesIO()
+            single_image.save(buffer, format="WEBP")
+            buffer.seek(0)
+            image_data = buffer.read()
+            base64_image = base64.b64encode(image_data).decode("utf-8")
+            buffer.close()
+            return base64_image
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        return str(e)
 
 
-async def async_simple_generate_example(apikey: str = ANON_API_KEY) -> None:
+async def async_generate_image(**kwargs) -> None:
     async with aiohttp.ClientSession() as aiohttp_session:
         simple_client = AIHordeAPIAsyncSimpleClient(aiohttp_session)
 
-        await async_one_image_generate_example(simple_client, apikey)
-        # await async_multi_image_generate_example(simple_client, apikey)
+        data = await generate_image(simple_client=simple_client, **kwargs)
+        return data
