@@ -43,6 +43,7 @@ async def generate_image(
     clip_skip: int = 1,
     source: str = None,
     mask: str = None,
+    image_is_control: bool = False,
 ) -> None:
     response: ImageGenerateStatusResponse
     job_id: JobID
@@ -75,7 +76,7 @@ async def generate_image(
                     steps=steps,
                     sampler_name=sampler_name,
                     control_type=control_type,
-                    image_is_control=False,
+                    image_is_control=image_is_control,
                     denoising_strength=denoising_strength,
                     cfg_scale=cfg_scale,
                     hires_fix=True,
@@ -112,16 +113,12 @@ async def generate_image(
                 response.generations[0]
             )
 
-            save_path = Path("/data")
-            save_path.mkdir(exist_ok=True, parents=True)
-            single_image.save(save_path / f"eve.webp")
-
             buffer = io.BytesIO()
             single_image.save(buffer, format="WEBP")
             buffer.seek(0)
             image_data = buffer.read()
             base64_image = base64.b64encode(image_data).decode("utf-8")
-            buffer.close()
+
             return base64_image
     except Exception as e:
         logger.error(traceback.format_exc())
