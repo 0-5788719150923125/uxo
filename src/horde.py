@@ -44,6 +44,8 @@ async def generate_image(
     source: str = None,
     mask: str = None,
     image_is_control: bool = False,
+    hires_fix: bool = True,
+    karras: bool = True,
 ) -> None:
     response: ImageGenerateStatusResponse
     job_id: JobID
@@ -79,8 +81,8 @@ async def generate_image(
                     image_is_control=image_is_control,
                     denoising_strength=denoising_strength,
                     cfg_scale=cfg_scale,
-                    hires_fix=True,
-                    # karras=True,
+                    hires_fix=hires_fix,
+                    karras=karras,
                     clip_skip=clip_skip,
                     # use_nsfw_censor=False,
                     # loras=[
@@ -95,10 +97,10 @@ async def generate_image(
                         TIPayloadEntry(name="4629", inject_ti="negprompt", strength=1),
                         TIPayloadEntry(name="7808", inject_ti="negprompt", strength=1),
                     ],
-                    # post_processing=[
-                    #     KNOWN_FACEFIXERS.GFPGAN,
-                    #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
-                    # ],
+                    post_processing=[
+                        # KNOWN_FACEFIXERS.GFPGAN,
+                        KNOWN_UPSCALERS.RealESRGAN_x2plus,
+                    ],
                     # post_processing_order=[
                     #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
                     # ]

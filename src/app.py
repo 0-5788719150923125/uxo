@@ -17,7 +17,6 @@ def generate():
         data = asyncio.run(
             async_generate_image(apikey=os.environ["HORDE_API_KEY"], **kwargs)
         )
-        logger.info(data)
         return jsonify({"data": str(data)}), 200
     except Exception as e:
         return jsonify({"data": str(e)}), 204
