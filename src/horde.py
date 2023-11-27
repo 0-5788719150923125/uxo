@@ -50,14 +50,6 @@ async def generate_image(
     response: ImageGenerateStatusResponse
     job_id: JobID
 
-    if source is None and os.path.exists("/static/source.jpg"):
-        with open("/static/source.jpg", "rb") as file:
-            source = base64.b64encode(file.read())
-
-    if mask is None and os.path.exists("/static/mask.jpg"):
-        with open("/static/mask.jpg", "rb") as file:
-            mask = base64.b64encode(file.read())
-
     try:
         generations = []
         count = 0
@@ -118,7 +110,7 @@ async def generate_image(
             count += 1
 
         if isinstance(response, RequestErrorResponse):
-            logger.error(f"Error: {response.message}")
+            raise Exception(response.message)
         else:
             single_image, _ = await simple_client.download_image_from_generation(
                 generations[0]
@@ -128,12 +120,12 @@ async def generate_image(
             single_image.save(buffer, format="WEBP")
             buffer.seek(0)
             image_data = buffer.read()
-            base64_image = base64.b64encode(image_data).decode("utf-8")
+            data = base64.b64encode(image_data).decode("utf-8")
 
-            return base64_image
+            return {"data": str(data)}
     except Exception as e:
-        logger.error(traceback.format_exc())
-        return str(e)
+        logger.error(e)
+        return {"err": str(e)}
 
 
 async def async_generate_image(**kwargs) -> None:

@@ -8,7 +8,6 @@ RUN apt-get update -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY static/ /static
 COPY src/ /src
 COPY requirements.txt /src
 

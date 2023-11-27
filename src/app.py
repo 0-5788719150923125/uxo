@@ -17,9 +17,9 @@ def generate():
         data = asyncio.run(
             async_generate_image(apikey=os.environ["HORDE_API_KEY"], **kwargs)
         )
-        return jsonify({"data": str(data)}), 200
+        return jsonify(data), 200
     except Exception as e:
-        return jsonify({"data": str(e)}), 204
+        return jsonify(data), 204
 
 
 if __name__ == "__main__":
