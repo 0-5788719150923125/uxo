@@ -59,60 +59,69 @@ async def generate_image(
             mask = base64.b64encode(file.read())
 
     try:
-        (
-            response,
-            job_id,
-        ) = await simple_client.image_generate_request(
-            ImageGenerateAsyncRequest(
-                apikey=apikey,
-                prompt=prompt,
-                source_image=source,
-                source_mask=mask,
-                source_processing="img2img",
-                models=models,
-                # nsfw=True,
-                # censor_nsfw=False,
-                params=ImageGenerationInputPayload(
-                    height=height,
-                    width=width,
-                    steps=steps,
-                    sampler_name=sampler_name,
-                    control_type=control_type,
-                    image_is_control=image_is_control,
-                    denoising_strength=denoising_strength,
-                    cfg_scale=cfg_scale,
-                    hires_fix=hires_fix,
-                    karras=karras,
-                    clip_skip=clip_skip,
-                    # use_nsfw_censor=False,
-                    # loras=[
-                    #     LorasPayloadEntry(
-                    #         name="kl-f8-anime2",
-                    #         # model=1,
-                    #         # clip=1,
-                    #         # inject_trigger="any",  # Get a random color trigger
-                    #     ),
-                    # ],
-                    tis=[
-                        TIPayloadEntry(name="4629", inject_ti="negprompt", strength=1),
-                        TIPayloadEntry(name="7808", inject_ti="negprompt", strength=1),
-                    ],
-                    post_processing=[
-                        # KNOWN_FACEFIXERS.GFPGAN,
-                        KNOWN_UPSCALERS.RealESRGAN_x2plus,
-                    ],
-                    # post_processing_order=[
-                    #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
-                    # ]
+        generations = []
+        count = 0
+        while len(generations) == 0 and count < 3:
+            (
+                response,
+                job_id,
+            ) = await simple_client.image_generate_request(
+                ImageGenerateAsyncRequest(
+                    apikey=apikey,
+                    prompt=prompt,
+                    source_image=source,
+                    source_mask=mask,
+                    source_processing="img2img",
+                    models=models,
+                    # nsfw=True,
+                    # censor_nsfw=False,
+                    params=ImageGenerationInputPayload(
+                        height=height,
+                        width=width,
+                        steps=steps,
+                        sampler_name=sampler_name,
+                        control_type=control_type,
+                        image_is_control=image_is_control,
+                        denoising_strength=denoising_strength,
+                        cfg_scale=cfg_scale,
+                        hires_fix=hires_fix,
+                        karras=karras,
+                        clip_skip=clip_skip,
+                        # use_nsfw_censor=False,
+                        # loras=[
+                        #     LorasPayloadEntry(
+                        #         name="kl-f8-anime2",
+                        #         # model=1,
+                        #         # clip=1,
+                        #         # inject_trigger="any",  # Get a random color trigger
+                        #     ),
+                        # ],
+                        tis=[
+                            TIPayloadEntry(
+                                name="4629", inject_ti="negprompt", strength=1
+                            ),
+                            TIPayloadEntry(
+                                name="7808", inject_ti="negprompt", strength=1
+                            ),
+                        ],
+                        # post_processing=[
+                        #     # KNOWN_FACEFIXERS.GFPGAN,
+                        #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
+                        # ],
+                        # post_processing_order=[
+                        #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
+                        # ]
+                    ),
                 ),
-            ),
-        )
+            )
+            generations = response.generations
+            count += 1
 
         if isinstance(response, RequestErrorResponse):
             logger.error(f"Error: {response.message}")
         else:
             single_image, _ = await simple_client.download_image_from_generation(
-                response.generations[0]
+                generations[0]
             )
 
             buffer = io.BytesIO()
