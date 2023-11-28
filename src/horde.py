@@ -1,7 +1,9 @@
 import asyncio
 import base64
 import io
+import json
 import os
+import sys
 import traceback
 from pathlib import Path
 
@@ -25,7 +27,8 @@ from horde_sdk.ai_horde_api.consts import (
 from horde_sdk.ai_horde_api.fields import JobID
 from loguru import logger
 
-# logging.getLogger("horde_sdk").setLevel(logging.WARNING)
+# logger.remove()
+# logger.add(sys.stdout, level="INFO")
 
 
 async def generate_image(
@@ -46,6 +49,7 @@ async def generate_image(
     image_is_control: bool = False,
     hires_fix: bool = True,
     karras: bool = True,
+    tis: list = None,
 ) -> None:
     response: ImageGenerateStatusResponse
     job_id: JobID
@@ -53,6 +57,18 @@ async def generate_image(
     try:
         generations = []
         count = 0
+
+        use_tis = []
+        if tis is list:
+            for ti in tis:
+                use_tis.append(
+                    TIPayloadEntry(
+                        name=ti["name"],
+                        inject_ti="negprompt",
+                        strength=ti["strength"],
+                    )
+                )
+
         while len(generations) == 0 and count < 3:
             (
                 response,
@@ -88,14 +104,7 @@ async def generate_image(
                         #         # inject_trigger="any",  # Get a random color trigger
                         #     ),
                         # ],
-                        tis=[
-                            TIPayloadEntry(
-                                name="4629", inject_ti="negprompt", strength=1
-                            ),
-                            TIPayloadEntry(
-                                name="7808", inject_ti="negprompt", strength=1
-                            ),
-                        ],
+                        tis=use_tis,
                         # post_processing=[
                         #     # KNOWN_FACEFIXERS.GFPGAN,
                         #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
@@ -124,7 +133,6 @@ async def generate_image(
 
             return {"data": str(data)}
     except Exception as e:
-        logger.error(e)
         return {"err": str(e)}
 
 

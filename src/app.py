@@ -12,18 +12,14 @@ app = Flask(__name__)
 
 @app.route("/generate")
 def generate():
-    data = None
-    try:
-        kwargs = request.get_json()
-        data = asyncio.run(
-            async_generate_image(apikey=os.environ["HORDE_API_KEY"], **kwargs)
-        )
-        if "err" in data:
-            raise Exception("There was an error.")
-        return jsonify(data), 200
-    except Exception as e:
+    kwargs = request.get_json()
+    data = asyncio.run(
+        async_generate_image(apikey=os.environ["HORDE_API_KEY"], **kwargs)
+    )
+    if "err" in data:
         logger.error(data)
-        return jsonify(data), 204
+        return jsonify(data), 400
+    return jsonify(data), 200
 
 
 if __name__ == "__main__":
