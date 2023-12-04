@@ -52,6 +52,7 @@ async def generate_image(
     hires_fix: bool = True,
     karras: bool = True,
     tis: list = None,
+    upscale: str = None,
 ) -> None:
     response: ImageGenerateStatusResponse
     job_id: JobID
@@ -71,6 +72,17 @@ async def generate_image(
                     )
                 )
 
+        use_post_processing = []
+        if upscale is not None:
+            assert upscale in [
+                "x2",
+                "x4",
+            ], "The 'upscale' argument must be either 'x2' or 'x4'."
+            if upscale == "x2":
+                use_post_processing.append(KNOWN_UPSCALERS.RealESRGAN_x2plus)
+            elif upscale == "x4":
+                use_post_processing.append(KNOWN_UPSCALERS.RealESRGAN_x4plus)
+
         while len(generations) == 0 and count < 3:
             (
                 response,
@@ -83,8 +95,8 @@ async def generate_image(
                     source_mask=mask,
                     source_processing=source_processing,
                     models=models,
-                    # nsfw=True,
-                    # censor_nsfw=False,
+                    nsfw=True,
+                    censor_nsfw=False,
                     params=ImageGenerationInputPayload(
                         height=height,
                         width=width,
@@ -92,12 +104,13 @@ async def generate_image(
                         sampler_name=sampler_name,
                         control_type=control_type,
                         image_is_control=image_is_control,
+                        return_control_map=return_control_map,
                         denoising_strength=denoising_strength,
                         cfg_scale=cfg_scale,
                         hires_fix=hires_fix,
                         karras=karras,
                         clip_skip=clip_skip,
-                        # use_nsfw_censor=False,
+                        use_nsfw_censor=False,
                         # loras=[
                         #     LorasPayloadEntry(
                         #         name="kl-f8-anime2",
@@ -107,6 +120,7 @@ async def generate_image(
                         #     ),
                         # ],
                         tis=use_tis,
+                        post_processing=use_post_processing
                         # post_processing=[
                         #     # KNOWN_FACEFIXERS.GFPGAN,
                         #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
