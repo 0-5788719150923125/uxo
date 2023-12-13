@@ -11,6 +11,10 @@ import aiohttp
 from horde_sdk import ANON_API_KEY, RequestErrorResponse
 from horde_sdk.ai_horde_api.ai_horde_clients import AIHordeAPIAsyncSimpleClient
 from horde_sdk.ai_horde_api.apimodels import (
+    KNOWN_ALCHEMY_TYPES,
+    AlchemyAsyncRequest,
+    AlchemyAsyncRequestFormItem,
+    AlchemyStatusResponse,
     ImageGenerateAsyncRequest,
     ImageGenerateStatusResponse,
     ImageGenerationInputPayload,
@@ -25,14 +29,9 @@ from horde_sdk.ai_horde_api.consts import (
     POST_PROCESSOR_ORDER_TYPE,
 )
 from horde_sdk.ai_horde_api.fields import JobID
-from loguru import logger
-
-# logger.remove()
-# logger.add(sys.stdout, level="INFO")
 
 
 async def generate_image(
-    simple_client: AIHordeAPIAsyncSimpleClient,
     apikey: str = ANON_API_KEY,
     prompt: str = "(masterpiece, top quality, best quality, official art, beautiful and aesthetic:1.2), (1girl:1.3), (fractal art:1.3),",
     models: list = ["GhostMix"],
@@ -83,78 +82,101 @@ async def generate_image(
             elif upscale == "x4":
                 use_post_processing.append(KNOWN_UPSCALERS.RealESRGAN_x4plus)
 
-        while len(generations) == 0 and count < 3:
-            (
-                response,
-                job_id,
-            ) = await simple_client.image_generate_request(
-                ImageGenerateAsyncRequest(
-                    apikey=apikey,
-                    prompt=prompt,
-                    source_image=source,
-                    source_mask=mask,
-                    source_processing=source_processing,
-                    models=models,
-                    nsfw=True,
-                    censor_nsfw=False,
-                    params=ImageGenerationInputPayload(
-                        height=height,
-                        width=width,
-                        steps=steps,
-                        sampler_name=sampler_name,
-                        control_type=control_type,
-                        image_is_control=image_is_control,
-                        return_control_map=return_control_map,
-                        denoising_strength=denoising_strength,
-                        cfg_scale=cfg_scale,
-                        hires_fix=hires_fix,
-                        karras=karras,
-                        clip_skip=clip_skip,
-                        use_nsfw_censor=False,
-                        # loras=[
-                        #     LorasPayloadEntry(
-                        #         name="kl-f8-anime2",
-                        #         # model=1,
-                        #         # clip=1,
-                        #         # inject_trigger="any",  # Get a random color trigger
-                        #     ),
-                        # ],
-                        tis=use_tis,
-                        post_processing=use_post_processing
-                        # post_processing=[
-                        #     # KNOWN_FACEFIXERS.GFPGAN,
-                        #     KNOWN_UPSCALERS.RealESRGAN_x2plus,
-                        # ],
-                        # post_processing_order=[
-                        #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
-                        # ]
+        data = None
+        async with aiohttp.ClientSession() as aiohttp_session:
+            simple_client = AIHordeAPIAsyncSimpleClient(aiohttp_session)
+
+            while len(generations) == 0 and count < 3:
+                (
+                    response,
+                    job_id,
+                ) = await simple_client.image_generate_request(
+                    ImageGenerateAsyncRequest(
+                        apikey=apikey,
+                        prompt=prompt,
+                        source_image=source,
+                        source_mask=mask,
+                        source_processing=source_processing,
+                        models=models,
+                        nsfw=True,
+                        censor_nsfw=False,
+                        params=ImageGenerationInputPayload(
+                            height=height,
+                            width=width,
+                            steps=steps,
+                            sampler_name=sampler_name,
+                            control_type=control_type,
+                            image_is_control=image_is_control,
+                            return_control_map=return_control_map,
+                            denoising_strength=denoising_strength,
+                            cfg_scale=cfg_scale,
+                            hires_fix=hires_fix,
+                            karras=karras,
+                            clip_skip=clip_skip,
+                            use_nsfw_censor=False,
+                            # loras=[
+                            #     LorasPayloadEntry(
+                            #         name="kl-f8-anime2",
+                            #         # model=1,
+                            #         # clip=1,
+                            #         # inject_trigger="any",  # Get a random color trigger
+                            #     ),
+                            # ],
+                            tis=use_tis,
+                            post_processing=use_post_processing
+                            # post_processing_order=[
+                            #     POST_PROCESSOR_ORDER_TYPE.facefixers_first
+                            # ]
+                        ),
                     ),
-                ),
-            )
-            generations = response.generations
-            count += 1
+                )
+                generations = response.generations
+                count += 1
 
-        if isinstance(response, RequestErrorResponse):
-            raise Exception(response.message)
-        else:
-            single_image, _ = await simple_client.download_image_from_generation(
-                generations[0]
-            )
+                if isinstance(response, RequestErrorResponse):
+                    raise Exception(response.message)
+                else:
+                    (
+                        single_image,
+                        _,
+                    ) = await simple_client.download_image_from_generation(
+                        generations[0]
+                    )
 
-            buffer = io.BytesIO()
-            single_image.save(buffer, format="WEBP")
-            buffer.seek(0)
-            image_data = buffer.read()
-            data = base64.b64encode(image_data).decode("utf-8")
+                    buffer = io.BytesIO()
+                    single_image.save(buffer, format="WEBP")
+                    buffer.seek(0)
+                    image_data = buffer.read()
+                    data = base64.b64encode(image_data).decode("utf-8")
+                    return {"data": str(data)}
 
-            return {"data": str(data)}
     except Exception as e:
         return {"err": str(e)}
 
 
-async def async_generate_image(**kwargs) -> None:
-    async with aiohttp.ClientSession() as aiohttp_session:
-        simple_client = AIHordeAPIAsyncSimpleClient(aiohttp_session)
+async def caption_image(
+    apikey: str = ANON_API_KEY,
+    source: str = None,
+) -> None:
+    try:
+        async with aiohttp.ClientSession() as aiohttp_session:
+            simple_client = AIHordeAPIAsyncSimpleClient(aiohttp_session)
 
-        data = await generate_image(simple_client=simple_client, **kwargs)
-        return data
+            status_response: AlchemyStatusResponse | RequestErrorResponse
+            status_response, job_id = await simple_client.alchemy_request(
+                AlchemyAsyncRequest(
+                    apikey=apikey,
+                    forms=[
+                        AlchemyAsyncRequestFormItem(name=KNOWN_ALCHEMY_TYPES.caption),
+                    ],
+                    source_image=source,
+                ),
+            )
+
+            print(f"Status: {status_response.state}")
+
+            for data in status_response.all_caption_results:
+                return {"data": str(data.caption)}
+
+    except Exception as e:
+        return {"err": str(e)}

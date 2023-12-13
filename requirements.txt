@@ -1,2 +1,2 @@
 Flask>=3.0.0
-horde-sdk>=0.7.23
+horde-sdk>=0.7.24
