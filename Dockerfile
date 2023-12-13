@@ -15,6 +15,6 @@ WORKDIR /src
 
 RUN pip install -r requirements.txt
 
-ENV LOGURU_LEVEL="info"
+ENV LOGURU_LEVEL="INFO"
 
 CMD ["python", "app.py"]
