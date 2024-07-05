@@ -1,4 +1,5 @@
-FROM python:3.12-slim
+ARG SOURCE_IMAGE
+FROM $SOURCE_IMAGE
 
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV PYTHONPYCACHEPREFIX='/tmp/__pycache__'

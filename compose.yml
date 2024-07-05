@@ -3,6 +3,8 @@ services:
     image: ghcr.io/0-5788719150923125/uxo:latest
     build:
       context: .
+      args:
+        SOURCE_IMAGE: python:3.12-slim
     ipc: host
     network_mode: host
     volumes:
