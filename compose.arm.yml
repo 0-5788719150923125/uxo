@@ -2,4 +2,4 @@ services:
   uxo:
     build:
       args:
-        SOURCE_IMAGE: arm64v8/ubuntu:22.04
+        SOURCE_IMAGE: arm64v8/python:3.12-slim
